@@ -1,0 +1,8 @@
+{
+  "name": "Zunetech Social GOD",
+  "description": "AI-powered social media strategist and script generator for the Zunetech brand.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
