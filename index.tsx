@@ -1,11 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { 
   Layout, History, BrainCircuit, Send, Loader2, ShieldAlert, Wifi, 
-  RefreshCw, AlertTriangle, Clock, Megaphone, Monitor, Mic, 
-  Zap, FileText, Share2, Check, Copy, Flame, FileSpreadsheet, Image as ImageIcon
+  RefreshCw, AlertTriangle, Clock, Monitor, Zap, Share2, Check, Flame, 
+  FileSpreadsheet, KeyRound, Globe
 } from 'lucide-react';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
 // --- 1. TYPES ---
 type VideoDuration = '10s' | '30s' | '60s';
@@ -26,7 +27,6 @@ interface ScriptContent {
   caption_seo: string;
   timestamp: string;
   duration: string;
-  generated_image_url?: string;
 }
 
 interface PersonaProfile {
@@ -45,29 +45,16 @@ const INITIAL_PERSONA: PersonaProfile = {
   }
 };
 
-// --- 3. SERVICES ---
-// Acesso seguro à API Key sem quebrar o script
-const API_KEY = (typeof process !== 'undefined' && process.env?.API_KEY) || "";
+// --- 3. SERVICES (DYNAMIC INITIALIZATION) ---
 
-const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
-
-const validateConnection = async (): Promise<boolean> => {
-  if (!ai) return false;
-  try {
-    await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: "ping",
-      config: { maxOutputTokens: 1 }
-    });
-    return true;
-  } catch (e) {
-    return false;
-  }
+const getAIInstance = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API_KEY_MISSING");
+  return new GoogleGenAI({ apiKey });
 };
 
 const generateAIContent = async (idea: string, duration: VideoDuration, cta: CtaPlacement): Promise<ScriptContent> => {
-  if (!ai) throw new Error("IA não inicializada");
-
+  const ai = getAIInstance();
   const prompt = `Gere um roteiro viral Zunetech sobre: ${idea}. Duração: ${duration}. CTA: ${cta}.
   Retorne APENAS um JSON:
   {
@@ -97,8 +84,8 @@ const generateAIContent = async (idea: string, duration: VideoDuration, cta: Cta
 };
 
 const getTrends = async () => {
-  if (!ai) return [];
   try {
+    const ai = getAIInstance();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: "4 tendências de Android/WhatsApp Brasil agora. JSON: [{'title': '...', 'reason': '...'}]",
@@ -115,7 +102,8 @@ const getTrends = async () => {
 
 // --- 4. COMPONENTS ---
 
-const ScriptCard = ({ script }: { script: ScriptContent }) => {
+// Fix: Explicitly use React.FC to include standard React props like 'key'
+const ScriptCard: React.FC<{ script: ScriptContent }> = ({ script }) => {
   const [copied, setCopied] = useState(false);
   
   const copyCaption = () => {
@@ -131,7 +119,6 @@ const ScriptCard = ({ script }: { script: ScriptContent }) => {
           <h3 className="text-emerald-400 font-mono font-bold uppercase tracking-wider">{script.title}</h3>
           <div className="flex gap-4 mt-1 text-[10px] text-slate-500 font-bold uppercase">
             <span className="flex items-center gap-1"><Clock size={12}/> {script.duration}</span>
-            <span className="flex items-center gap-1"><Monitor size={12}/> {script.topic}</span>
           </div>
         </div>
         <button onClick={copyCaption} className="bg-emerald-500/10 text-emerald-400 p-2 rounded-xl border border-emerald-500/20 hover:bg-emerald-500/20 transition-all">
@@ -147,24 +134,23 @@ const ScriptCard = ({ script }: { script: ScriptContent }) => {
           </div>
           
           <div className="space-y-3">
-            <p className="text-[10px] text-slate-500 font-black uppercase">Sequência do Roteiro</p>
+            <p className="text-[10px] text-slate-500 font-black uppercase">Roteiro</p>
             {script.script_scenes?.map((s, i) => (
-              <div key={i} className="flex gap-4 text-xs group">
+              <div key={i} className="flex gap-4 text-xs">
                 <span className="text-slate-600 font-mono w-10 shrink-0 mt-1">{s.time_segment}</span>
                 <div className="flex-1 pb-4 border-l border-slate-800 pl-4 relative">
-                  <div className="absolute top-1.5 -left-1 w-2 h-2 rounded-full bg-slate-800 group-hover:bg-emerald-500 transition-colors"></div>
+                  <div className="absolute top-1.5 -left-1 w-2 h-2 rounded-full bg-slate-800"></div>
                   <p className="text-blue-400 font-bold mb-1 uppercase tracking-tighter">[TELA] {s.visual_cue}</p>
-                  <p className="text-slate-300 leading-relaxed italic">"{s.audio_narration}"</p>
+                  <p className="text-slate-300 italic">"{s.audio_narration}"</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
-
         <div className="hidden lg:flex flex-col gap-4">
            <div className="aspect-[9/16] bg-black rounded-3xl border border-slate-800 flex items-center justify-center relative overflow-hidden group shadow-inner">
               <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:24px_24px]"></div>
-              <p className="text-slate-800 font-mono text-[10px] uppercase tracking-[0.5em] text-center px-8">Preview Mobile 9:16</p>
+              <p className="text-slate-800 font-mono text-[10px] uppercase tracking-[0.5em] text-center px-8">Preview Mobile</p>
            </div>
         </div>
       </div>
@@ -180,22 +166,32 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [scripts, setScripts] = useState<ScriptContent[]>([]);
   const [trends, setTrends] = useState<any[]>([]);
-  const [isValid, setIsValid] = useState<boolean | null>(null);
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const init = async () => {
-      const saved = localStorage.getItem('zune_v25');
-      if (saved) setScripts(JSON.parse(saved));
-      
-      const ok = await validateConnection();
-      setIsValid(ok);
-      if (ok) getTrends().then(setTrends);
+    const checkKey = async () => {
+      // @ts-ignore
+      const ok = await window.aistudio.hasSelectedApiKey();
+      setHasKey(ok);
+      if (ok) {
+        const saved = localStorage.getItem('zune_v25');
+        if (saved) setScripts(JSON.parse(saved));
+        getTrends().then(setTrends);
+      }
     };
-    init();
+    checkKey();
   }, []);
 
+  const handleConnect = async () => {
+    // @ts-ignore
+    await window.aistudio.openSelectKey();
+    setHasKey(true);
+    // Recarrega tendências após conexão
+    getTrends().then(setTrends);
+  };
+
   const handleGenerate = async () => {
-    if (!idea || !isValid) return;
+    if (!idea) return;
     setLoading(true);
     try {
       const res = await generateAIContent(idea, '30s', 'Meio');
@@ -203,29 +199,48 @@ const App = () => {
       setScripts(newScripts);
       localStorage.setItem('zune_v25', JSON.stringify(newScripts));
       setIdea('');
-    } catch (e) {
-      alert("Erro na matriz Zunetech.");
+    } catch (e: any) {
+      if (e.message?.includes("Requested entity was not found")) {
+        setHasKey(false);
+        alert("Chave inválida ou expirada. Reconecte o sistema.");
+      } else {
+        alert("Erro na matriz Zunetech. Verifique sua conexão.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  if (isValid === false) {
+  // Tela de Conexão Inicial (Previne o erro de flash)
+  if (hasKey === false) {
     return (
-      <div className="h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-slate-900 border border-red-500/30 rounded-3xl p-8 text-center shadow-2xl">
-          <ShieldAlert size={48} className="text-red-500 mx-auto mb-6 animate-pulse" />
-          <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">Erro de Autenticação</h2>
-          <p className="text-slate-400 text-sm mb-8 leading-relaxed">
-            Nenhuma chave de API válida detectada. Configure o <strong>process.env.API_KEY</strong> no seu ambiente de hospedagem para habilitar o Social GOD.
+      <div className="h-screen bg-slate-950 flex items-center justify-center p-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#10b98122_0,transparent_70%)]"></div>
+        <div className="max-w-md w-full bg-slate-900 border border-emerald-500/20 rounded-[3rem] p-10 text-center shadow-[0_0_80px_-20px_rgba(16,185,129,0.2)] relative z-10">
+          <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-emerald-500/20">
+            <KeyRound size={32} className="text-emerald-500 animate-pulse" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-3 uppercase tracking-tighter">Acesso à Matriz</h2>
+          <p className="text-slate-400 text-sm mb-10 leading-relaxed font-medium">
+            Para ativar o <strong>Social GOD</strong> e as funções de pesquisa do Google, você precisa conectar uma chave de API válida.
           </p>
-          <button onClick={() => window.location.reload()} className="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all">
-            <RefreshCw size={18}/> Tentar Reconectar
+          <button 
+            onClick={handleConnect} 
+            className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 group"
+          >
+            CONECTAR AO SOCIAL GOD
+            <Zap size={18} className="group-hover:fill-current"/>
           </button>
+          <div className="mt-8 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+            <Globe size={12}/> Conexão Segura SSL/ZUNE
+          </div>
         </div>
       </div>
     );
   }
+
+  // Tela de Carregamento Silencioso
+  if (hasKey === null) return null;
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-[#020617] text-slate-200 overflow-hidden">
@@ -236,7 +251,7 @@ const App = () => {
             <Zap className="text-emerald-500 fill-emerald-500" size={24}/>
             <h1 className="text-2xl font-black tracking-tighter text-white">ZUNETECH</h1>
           </div>
-          <p className="text-[10px] font-black text-slate-600 tracking-[0.3em] uppercase">Social Intelligence</p>
+          <p className="text-[10px] font-black text-slate-600 tracking-[0.3em] uppercase">Intelligence HQ</p>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -254,19 +269,19 @@ const App = () => {
         <div className="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center gap-3">
           <Wifi size={14} className="text-emerald-500"/>
           <div className="text-[9px] font-bold uppercase leading-tight text-emerald-500/70">
-            Status: Conectado <br/>
-            Matriz: Operacional
+            Link: Estabelecido <br/>
+            Matriz: Online
           </div>
         </div>
       </aside>
 
       {/* Content Area */}
-      <main className="flex-1 overflow-y-auto p-6 md:p-12 custom-scrollbar">
+      <main className="flex-1 overflow-y-auto p-6 md:p-12">
         {tab === 'WAR' && (
           <div className="max-w-4xl mx-auto">
             <header className="mb-12">
               <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter">War Room</h2>
-              <p className="text-slate-500 font-medium">Comando central para criação de conteúdo de alta retenção.</p>
+              <p className="text-slate-500 font-medium">Comando central para criação de conteúdo.</p>
             </header>
 
             <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 shadow-2xl mb-12 relative overflow-hidden">
@@ -279,34 +294,30 @@ const App = () => {
                     <input 
                       value={idea}
                       onChange={(e) => setIdea(e.target.value)}
-                      placeholder="Ex: Como limpar o WhatsApp sem apagar nada"
+                      placeholder="Tema do vídeo..."
                       className="flex-1 bg-black/50 border border-slate-800 rounded-2xl p-5 text-white outline-none focus:border-emerald-500 transition-all placeholder:text-slate-700"
                     />
                     <button 
                       onClick={handleGenerate}
-                      disabled={loading || !idea || !isValid}
+                      disabled={loading || !idea}
                       className="bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-600 px-10 py-5 rounded-2xl text-black font-black uppercase tracking-tighter transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 active:scale-95"
                     >
-                      {loading ? <Loader2 className="animate-spin" size={20}/> : "Gerar Roteiro"}
+                      {loading ? <Loader2 className="animate-spin" size={20}/> : "Gerar"}
                     </button>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <p className="text-[10px] font-black text-orange-500 uppercase flex items-center gap-2 tracking-widest">
-                    <Flame size={14}/> Radar de Tendências (Brasil)
+                    <Flame size={14}/> Radar de Tendências
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {trends.length > 0 ? trends.map((t, i) => (
+                    {trends.map((t, i) => (
                       <button key={i} onClick={() => setIdea(t.title)} className="text-left p-5 rounded-2xl bg-black/30 border border-slate-800 hover:border-orange-500/30 transition-all group">
                         <p className="text-xs font-bold text-slate-300 group-hover:text-white">{t.title}</p>
-                        <p className="text-[10px] text-slate-600 mt-1 uppercase font-bold tracking-tighter">{t.reason}</p>
+                        <p className="text-[10px] text-slate-600 mt-1 uppercase font-bold">{t.reason}</p>
                       </button>
-                    )) : (
-                      <div className="col-span-full py-6 text-center text-slate-700 font-mono text-[10px] uppercase animate-pulse">
-                        Escaneando rede...
-                      </div>
-                    )}
+                    ))}
                   </div>
                 </div>
               </div>
@@ -321,19 +332,11 @@ const App = () => {
             <header className="mb-12 flex justify-between items-end">
               <div>
                 <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter">Arquivos</h2>
-                <p className="text-slate-500 font-medium">Repositório de inteligência estratégica acumulada.</p>
+                <p className="text-slate-500 font-medium">Repositório de inteligência.</p>
               </div>
-              <button className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2">
-                <FileSpreadsheet size={16}/> Exportar Lista
-              </button>
             </header>
-            
             <div className="space-y-4">
-              {scripts.length === 0 ? (
-                <div className="p-20 text-center border-2 border-dashed border-slate-900 rounded-[3rem]">
-                  <p className="text-slate-800 font-mono text-xs uppercase tracking-[0.5em]">Matriz de Memória Vazia</p>
-                </div>
-              ) : scripts.map(s => <ScriptCard key={s.id} script={s} />)}
+              {scripts.map(s => <ScriptCard key={s.id} script={s} />)}
             </div>
           </div>
         )}
@@ -342,9 +345,7 @@ const App = () => {
           <div className="max-w-4xl mx-auto">
             <header className="mb-12">
               <h2 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter">The Brain</h2>
-              <p className="text-slate-500 font-medium">Análise da persona e diretrizes do Social GOD.</p>
             </header>
-            
             <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-10 font-mono text-[11px] leading-relaxed text-emerald-500/70 overflow-x-auto shadow-2xl">
               <pre>{JSON.stringify(INITIAL_PERSONA, null, 2)}</pre>
             </div>
