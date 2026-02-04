@@ -3,29 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Zunetech Social GOD - HQ de Estratégia</title>
+    <title>ZUNETECH - SOCIAL GOD V2.5</title>
     
-    <!-- Scripts de Estilo e Ícones -->
+    <!-- Bibliotecas Externas -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;900&display=swap');
+      
+      :root {
+        --neon-green: #10b981;
+        --deep-slate: #020617;
+      }
+
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #0f172a;
-        color: #e2e8f0;
+        background-color: var(--deep-slate);
+        color: #f1f5f9;
         margin: 0;
+        overflow: hidden;
       }
-      .font-mono {
-        font-family: 'JetBrains Mono', monospace;
+
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+      /* Scrollbar Customizada */
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: #0f172a; }
+      ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+      
+      /* Efeito de Scanline Neon */
+      .scanline {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 2px;
+        background: rgba(16, 185, 129, 0.1);
+        z-index: 50;
+        pointer-events: none;
+        animation: scan 4s linear infinite;
       }
-      /* Efeito de carregamento suave */
-      #root:empty {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100vh;
+
+      @keyframes scan {
+        0% { top: -10%; }
+        100% { top: 110%; }
       }
     </style>
 
@@ -44,13 +63,10 @@
 </script>
   </head>
   <body>
-    <div id="root">
-      <div class="text-slate-500 font-mono text-sm animate-pulse">
-        [ INICIANDO PROTOCOLO ZUNETECH... ]
-      </div>
-    </div>
+    <div class="scanline"></div>
+    <div id="root"></div>
 
-    <!-- O Babel permite que o navegador entenda JSX/TSX diretamente -->
+    <!-- O Babel transpila o TSX em tempo real no navegador -->
     <script type="text/babel" data-presets="react,typescript" data-type="module" src="index.tsx"></script>
   </body>
 </html>
