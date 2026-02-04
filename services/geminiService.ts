@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { PersonaProfile, ScriptContent, VideoDuration, CtaPlacement, TrendingTopic } from "../types.ts";
 
@@ -5,14 +6,33 @@ import { PersonaProfile, ScriptContent, VideoDuration, CtaPlacement, TrendingTop
 const getApiKey = () => {
   const key = process.env.API_KEY;
   if (!key || key === "undefined") {
-    console.warn("Zunetech: API_KEY não encontrada. O sistema funcionará em modo de demonstração limitada.");
     return "";
   }
   return key;
 };
 
 const apiKey = getApiKey();
-const ai = new GoogleGenAI({ apiKey });
+
+// Função para validar se a chave funciona na prática
+export const validateApiKey = async (): Promise<boolean> => {
+  if (!apiKey) return false;
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const model = "gemini-3-flash-preview";
+    // Tenta uma geração mínima apenas para validar a conexão
+    await ai.models.generateContent({
+      model,
+      contents: "ping",
+      config: { maxOutputTokens: 1 }
+    });
+    return true;
+  } catch (error) {
+    console.error("Zunetech: Falha crítica na validação da API Key:", error);
+    return false;
+  }
+};
+
+const getAI = () => new GoogleGenAI({ apiKey: getApiKey() });
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
@@ -52,12 +72,13 @@ const RESPONSE_SCHEMA = {
 };
 
 export const fetchTrendingTopics = async (): Promise<TrendingTopic[]> => {
-  if (!apiKey) return [
+  const key = getApiKey();
+  if (!key) return [
     { title: "Libertar Memória WhatsApp", reason: "Sempre em alta no Brasil" },
     { title: "IA Grátis para Fotos", reason: "Tendência de produtividade" }
   ];
 
-  // Usando gemini-3-flash para maior velocidade e gratuidade
+  const ai = new GoogleGenAI({ apiKey: key });
   const model = "gemini-3-flash-preview"; 
   try {
     const response = await ai.models.generateContent({
@@ -94,8 +115,10 @@ export const generateScriptFromIdea = async (
   duration: VideoDuration,
   ctaPlacement: CtaPlacement
 ): Promise<ScriptContent> => {
-  if (!apiKey) throw new Error("API Key não configurada.");
+  const key = getApiKey();
+  if (!key) throw new Error("API Key não configurada.");
 
+  const ai = new GoogleGenAI({ apiKey: key });
   const model = "gemini-3-flash-preview";
   const systemInstruction = `${persona.system_instruction}
   
@@ -136,7 +159,9 @@ export const generateScriptFromIdea = async (
 };
 
 export const generateHookImage = async (prompt: string): Promise<string> => {
-  if (!apiKey) return "";
+  const key = getApiKey();
+  if (!key) return "";
+  const ai = new GoogleGenAI({ apiKey: key });
   const model = "gemini-2.5-flash-image"; 
   try {
     const response = await ai.models.generateContent({
