@@ -1,7 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PersonaProfile, ScriptContent, VideoDuration, CtaPlacement, TrendingTopic } from "../types.ts";
 
-const apiKey = process.env.API_KEY || "";
+// Verificação segura da API KEY
+const getApiKey = () => {
+  const key = process.env.API_KEY;
+  if (!key || key === "undefined") {
+    console.warn("Zunetech: API_KEY não encontrada. O sistema funcionará em modo de demonstração limitada.");
+    return "";
+  }
+  return key;
+};
+
+const apiKey = getApiKey();
 const ai = new GoogleGenAI({ apiKey });
 
 const RESPONSE_SCHEMA = {
@@ -42,8 +52,13 @@ const RESPONSE_SCHEMA = {
 };
 
 export const fetchTrendingTopics = async (): Promise<TrendingTopic[]> => {
-  if (!apiKey) return [];
-  const model = "gemini-3-pro-preview"; 
+  if (!apiKey) return [
+    { title: "Libertar Memória WhatsApp", reason: "Sempre em alta no Brasil" },
+    { title: "IA Grátis para Fotos", reason: "Tendência de produtividade" }
+  ];
+
+  // Usando gemini-3-flash para maior velocidade e gratuidade
+  const model = "gemini-3-flash-preview"; 
   try {
     const response = await ai.models.generateContent({
       model,
@@ -67,10 +82,8 @@ export const fetchTrendingTopics = async (): Promise<TrendingTopic[]> => {
   } catch (error) {
     console.error("Erro ao buscar tendências:", error);
     return [
-      { title: "Limpar Memória do WhatsApp", reason: "Problema comum de espaço" },
-      { title: "IA de Fotos Gratuitas", reason: "Tendência de produtividade" },
-      { title: "Bug na atualização do Instagram", reason: "Assunto do momento" },
-      { title: "Economia de Bateria Real", reason: "Desejo universal" }
+      { title: "Limpar Cache do Android", reason: "Solução para travamentos" },
+      { title: "Novas Vozes do TikTok", reason: "Engajamento visual" }
     ];
   }
 };
@@ -81,17 +94,19 @@ export const generateScriptFromIdea = async (
   duration: VideoDuration,
   ctaPlacement: CtaPlacement
 ): Promise<ScriptContent> => {
-  const model = "gemini-3-pro-preview";
+  if (!apiKey) throw new Error("API Key não configurada.");
+
+  const model = "gemini-3-flash-preview";
   const systemInstruction = `${persona.system_instruction}
   
   CONTEXTO ZUNETECH:
   ${JSON.stringify(persona.context_memory)}
 
-  REGRAS DO ROTEIRO:
+  REGRAS:
   - Duração: ${duration}.
-  - Posição do CTA: ${ctaPlacement}.
-  - Linguagem: Português do Brasil.
-  - O campo 'script_scenes' deve detalhar o que APARECE na tela e o que é FALADO quadro a quadro.
+  - CTA em: ${ctaPlacement}.
+  - Idioma: Português (Brasil).
+  - Use ganchos de curiosidade agressivos.
   `;
 
   try {
@@ -115,42 +130,23 @@ export const generateScriptFromIdea = async (
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.error("Falha na geração:", error);
+    console.error("Erro na geração do roteiro:", error);
     throw error;
   }
 };
 
 export const generateHookImage = async (prompt: string): Promise<string> => {
+  if (!apiKey) return "";
   const model = "gemini-2.5-flash-image"; 
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: { parts: [{ text: `High impact social media visual: ${prompt}. Aspect Ratio 9:16.` }] },
+      contents: { parts: [{ text: `Social media impact image: ${prompt}. Aspect Ratio 9:16.` }] },
       config: { imageConfig: { aspectRatio: "9:16" } }
     });
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
-    throw new Error("Imagem não gerada");
-  } catch (error) {
-    console.error("Erro na imagem:", error);
-    throw error;
-  }
-};
-
-export const analyzeMediaContent = async (fileBase64: string, mimeType: string, persona: PersonaProfile): Promise<string> => {
-  const model = "gemini-3-pro-preview";
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: {
-        parts: [{ inlineData: { data: fileBase64, mimeType } }, { text: "Analise o potencial viral deste conteúdo." }]
-      },
-      config: { systemInstruction: persona.system_instruction }
-    });
-    return response.text || "Sem análise.";
-  } catch (error) {
-    console.error("Erro na análise:", error);
-    throw error;
-  }
+    return "";
+  } catch (e) { return ""; }
 };
