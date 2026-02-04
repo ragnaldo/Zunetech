@@ -1,7 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PersonaProfile, ScriptContent, VideoDuration, CtaPlacement, TrendingTopic } from "../types";
 
-// Initialize Gemini Client
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const RESPONSE_SCHEMA = {
@@ -22,10 +21,11 @@ const RESPONSE_SCHEMA = {
           time_segment: { type: Type.STRING },
           visual_cue: { type: Type.STRING },
           audio_narration: { type: Type.STRING }
-        }
+        },
+        required: ["time_segment", "visual_cue", "audio_narration"]
       }
     },
-    main_content: { type: Type.STRING }, // Fallback summary
+    main_content: { type: Type.STRING },
     outro: { type: Type.STRING },
     caption_seo: { type: Type.STRING },
     hashtags: { 
@@ -42,11 +42,10 @@ const RESPONSE_SCHEMA = {
 
 export const fetchTrendingTopics = async (): Promise<TrendingTopic[]> => {
   const model = "gemini-3-pro-preview"; 
-  
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: "Pesquise na web por: 1. Problemas recentes ou bugs no WhatsApp, Instagram ou Android. 2. Novas IAs gratuitas que lançaram essa semana. 3. Dores comuns de usuários de celular barato (bateria, memória). Liste 4 tópicos quentes para vídeo.",
+      contents: "Pesquise na web em português Brasil por: 1. Problemas ou bugs recentes no WhatsApp, Instagram ou Android. 2. Novas ferramentas de IA gratuitas úteis. 3. Dores de quem tem celular lento. Extraia 4 temas para vídeos curtos e virais.",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -62,15 +61,13 @@ export const fetchTrendingTopics = async (): Promise<TrendingTopic[]> => {
         }
       }
     });
-
-    const text = response.text || "[]";
-    return JSON.parse(text);
+    return JSON.parse(response.text || "[]");
   } catch (error) {
-    console.error("Failed to fetch trends:", error);
+    console.error("Erro ao buscar tendências:", error);
     return [
-      { title: "Truques de Bateria Samsung", reason: "Dor constante de usuários" },
-      { title: "Função Oculta WhatsApp", reason: "Curiosidade sempre alta" },
-      { title: "Site que substitui PC", reason: "Utilidade pública" }
+      { title: "Libertar Memória do WhatsApp", reason: "Dor constante de brasileiros" },
+      { title: "IA que cria apresentações", reason: "Tendência de produtividade" },
+      { title: "Bug na atualização do Instagram", reason: "Notícia urgente" }
     ];
   }
 };
@@ -81,120 +78,76 @@ export const generateScriptFromIdea = async (
   duration: VideoDuration,
   ctaPlacement: CtaPlacement
 ): Promise<ScriptContent> => {
-  const model = "gemini-3-pro-preview"; // High reasoning for strategy
-  
+  const model = "gemini-3-pro-preview";
   const systemInstruction = `${persona.system_instruction}
   
-  MEMÓRIA ATUAL:
+  CONTEXTO ZUNETECH:
   ${JSON.stringify(persona.context_memory)}
 
-  TAREFA:
-  Gere um roteiro viral para o tema: "${idea}".
-  Duração do Vídeo: ${duration}.
-  Posição do CTA (Call to Action): ${ctaPlacement}.
-  Idioma: Português (Brasil).
-
-  ESTRUTURA OBRIGATÓRIA:
-  O campo 'script_scenes' deve conter o roteiro dividido linha a linha com o que aparece na tela (Visual) e o que é falado (Locução).
+  REGRAS DO ROTEIRO:
+  - Duração estimada: ${duration}.
+  - Posicionamento do CTA: ${ctaPlacement}.
+  - Linguagem: Português do Brasil (Coloquial, técnico, direto).
+  - O campo 'script_scenes' deve detalhar o que APARECE (Visual) e o que é FALADO (Locução) quadro a quadro.
   `;
 
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: `Gere o roteiro sobre: ${idea}`,
+      contents: `Gere um roteiro épico sobre: ${idea}`,
       config: {
-        systemInstruction: systemInstruction,
+        systemInstruction,
         responseMimeType: "application/json",
         responseSchema: RESPONSE_SCHEMA,
       },
     });
 
-    const text = response.text || "{}";
-    const data = JSON.parse(text);
-    
+    const data = JSON.parse(response.text || "{}");
     return {
       ...data,
       id: crypto.randomUUID(),
       topic: idea,
       duration,
-      cta_placement: ctaPlacement, // Ensure it matches input
+      cta_placement: ctaPlacement,
       timestamp: new Date().toISOString(),
     };
   } catch (error) {
-    console.error("Script generation failed:", error);
+    console.error("Falha na geração:", error);
     throw error;
   }
 };
 
 export const generateHookImage = async (prompt: string): Promise<string> => {
-  // Using gemini-2.5-flash-image which is generally available and performant
   const model = "gemini-2.5-flash-image"; 
-
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: {
-        parts: [
-          { text: `Create a high impact, viral social media hook image. Visual Description: ${prompt}. Aspect Ratio 9:16 (Story/Reels style) or 1:1 if generic.` }
-        ]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "9:16",
-        }
-      }
+      contents: { parts: [{ text: `Social media viral hook visual: ${prompt}. Aspect Ratio 9:16.` }] },
+      config: { imageConfig: { aspectRatio: "9:16" } }
     });
-
-    // Extract image
     for (const part of response.candidates?.[0]?.content?.parts || []) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
+      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
-    throw new Error("No image generated");
+    throw new Error("Imagem não gerada");
   } catch (error) {
-    console.error("Image generation failed:", JSON.stringify(error, null, 2));
+    console.error("Erro na imagem:", error);
     throw error;
   }
 };
 
-export const analyzeMediaContent = async (
-  fileBase64: string, 
-  mimeType: string, 
-  persona: PersonaProfile
-): Promise<string> => {
-  const model = "gemini-3-pro-preview"; // Multimodal analysis
-
-  const systemInstruction = `${persona.system_instruction}
-  
-  TAREFA:
-  Analise a mídia anexada (imagem ou frame de vídeo). 
-  Critique brutalmente com base nas regras visuais da 'Zunetech' (Regras CapCut, Gancho visual).
-  Diga se isso vai viralizar ou falhar. Dê 3 melhorias específicas. Responda em Português.
-  `;
-
+export const analyzeMediaContent = async (fileBase64: string, mimeType: string, persona: PersonaProfile): Promise<string> => {
+  const model = "gemini-3-pro-preview";
   try {
     const response = await ai.models.generateContent({
       model,
       contents: {
-        parts: [
-          {
-            inlineData: {
-              data: fileBase64,
-              mimeType: mimeType
-            }
-          },
-          { text: "Analise este conteúdo para potencial viral." }
-        ]
+        parts: [{ inlineData: { data: fileBase64, mimeType } }, { text: "Analise o potencial viral deste conteúdo para o perfil Zunetech." }]
       },
-      config: {
-        systemInstruction
-      }
+      config: { systemInstruction: persona.system_instruction }
     });
-
-    return response.text || "Nenhuma análise fornecida.";
+    return response.text || "Sem análise.";
   } catch (error) {
-    console.error("Analysis failed:", error);
+    console.error("Erro na análise:", error);
     throw error;
   }
 };
