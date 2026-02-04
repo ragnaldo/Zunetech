@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { PersonaProfile, ScriptContent, VideoDuration, CtaPlacement, TrendingTopic } from "../types";
+import { PersonaProfile, ScriptContent, VideoDuration, CtaPlacement, TrendingTopic } from "../types.ts";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const apiKey = process.env.API_KEY || "";
+const ai = new GoogleGenAI({ apiKey });
 
 const RESPONSE_SCHEMA = {
   type: Type.OBJECT,
@@ -41,11 +42,12 @@ const RESPONSE_SCHEMA = {
 };
 
 export const fetchTrendingTopics = async (): Promise<TrendingTopic[]> => {
+  if (!apiKey) return [];
   const model = "gemini-3-pro-preview"; 
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: "Pesquise na web em português Brasil por: 1. Problemas ou bugs recentes no WhatsApp, Instagram ou Android. 2. Novas ferramentas de IA gratuitas úteis. 3. Dores de quem tem celular lento. Extraia 4 temas para vídeos curtos e virais.",
+      contents: "Pesquise na web em português Brasil por: 1. Problemas ou bugs recentes no WhatsApp, Instagram ou Android. 2. Novas ferramentas de IA gratuitas úteis. 3. Dores de quem tem celular lento ou bateria ruim. Extraia 4 temas para vídeos curtos e virais.",
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -65,9 +67,10 @@ export const fetchTrendingTopics = async (): Promise<TrendingTopic[]> => {
   } catch (error) {
     console.error("Erro ao buscar tendências:", error);
     return [
-      { title: "Libertar Memória do WhatsApp", reason: "Dor constante de brasileiros" },
-      { title: "IA que cria apresentações", reason: "Tendência de produtividade" },
-      { title: "Bug na atualização do Instagram", reason: "Notícia urgente" }
+      { title: "Limpar Memória do WhatsApp", reason: "Problema comum de espaço" },
+      { title: "IA de Fotos Gratuitas", reason: "Tendência de produtividade" },
+      { title: "Bug na atualização do Instagram", reason: "Assunto do momento" },
+      { title: "Economia de Bateria Real", reason: "Desejo universal" }
     ];
   }
 };
@@ -85,10 +88,10 @@ export const generateScriptFromIdea = async (
   ${JSON.stringify(persona.context_memory)}
 
   REGRAS DO ROTEIRO:
-  - Duração estimada: ${duration}.
-  - Posicionamento do CTA: ${ctaPlacement}.
-  - Linguagem: Português do Brasil (Coloquial, técnico, direto).
-  - O campo 'script_scenes' deve detalhar o que APARECE (Visual) e o que é FALADO (Locução) quadro a quadro.
+  - Duração: ${duration}.
+  - Posição do CTA: ${ctaPlacement}.
+  - Linguagem: Português do Brasil.
+  - O campo 'script_scenes' deve detalhar o que APARECE na tela e o que é FALADO quadro a quadro.
   `;
 
   try {
@@ -122,7 +125,7 @@ export const generateHookImage = async (prompt: string): Promise<string> => {
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: { parts: [{ text: `Social media viral hook visual: ${prompt}. Aspect Ratio 9:16.` }] },
+      contents: { parts: [{ text: `High impact social media visual: ${prompt}. Aspect Ratio 9:16.` }] },
       config: { imageConfig: { aspectRatio: "9:16" } }
     });
     for (const part of response.candidates?.[0]?.content?.parts || []) {
@@ -141,7 +144,7 @@ export const analyzeMediaContent = async (fileBase64: string, mimeType: string, 
     const response = await ai.models.generateContent({
       model,
       contents: {
-        parts: [{ inlineData: { data: fileBase64, mimeType } }, { text: "Analise o potencial viral deste conteúdo para o perfil Zunetech." }]
+        parts: [{ inlineData: { data: fileBase64, mimeType } }, { text: "Analise o potencial viral deste conteúdo." }]
       },
       config: { systemInstruction: persona.system_instruction }
     });

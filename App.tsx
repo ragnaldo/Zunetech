@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout, History, Scan, BrainCircuit, Send, Loader2, Download, Flame, FileSpreadsheet, Save, ChevronRight } from 'lucide-react';
-import { AppTab, ScriptContent, PersonaProfile, VideoDuration, CtaPlacement, TrendingTopic } from './types';
-import { INITIAL_PERSONA } from './constants';
-import * as GeminiService from './services/geminiService';
-import ScriptCard from './components/ScriptCard';
+import { AppTab, ScriptContent, PersonaProfile, VideoDuration, CtaPlacement, TrendingTopic } from './types.ts';
+import { INITIAL_PERSONA } from './constants.ts';
+import * as GeminiService from './services/geminiService.ts';
+import ScriptCard from './components/ScriptCard.tsx';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.GENERATOR);
@@ -28,9 +28,14 @@ const App: React.FC = () => {
 
   const loadTrends = async () => {
     setLoadingTrends(true);
-    const result = await GeminiService.fetchTrendingTopics();
-    setTrends(result);
-    setLoadingTrends(false);
+    try {
+      const result = await GeminiService.fetchTrendingTopics();
+      setTrends(result);
+    } catch (e) {
+      console.error("Erro ao carregar tendências");
+    } finally {
+      setLoadingTrends(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -41,7 +46,7 @@ const App: React.FC = () => {
       setScripts(prev => [script, ...prev]);
       setIdeaInput('');
     } catch (e) {
-      alert("O Social GOD falhou. Verifique sua conexão.");
+      alert("Falha na geração. Verifique sua conexão ou API Key.");
     } finally {
       setIsGenerating(false);
     }
@@ -62,7 +67,7 @@ const App: React.FC = () => {
     const blob = new Blob([data], { type: 'application/json' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "zunetech_backup.json";
+    link.download = "zunetech_brain_backup.json";
     link.click();
   };
 
@@ -76,7 +81,7 @@ const App: React.FC = () => {
         <nav className="flex flex-col gap-2 flex-1">
           <NavBtn active={activeTab === AppTab.GENERATOR} label="War Room" icon={<Layout size={18}/>} onClick={() => setActiveTab(AppTab.GENERATOR)} />
           <NavBtn active={activeTab === AppTab.HISTORY} label="Arquivos" icon={<History size={18}/>} onClick={() => setActiveTab(AppTab.HISTORY)} />
-          <NavBtn active={activeTab === AppTab.BRAIN} label="Cérebro" icon={<BrainCircuit size={18}/>} onClick={() => setActiveTab(AppTab.BRAIN)} />
+          <NavBtn active={activeTab === AppTab.BRAIN} label="O Cérebro" icon={<BrainCircuit size={18}/>} onClick={() => setActiveTab(AppTab.BRAIN)} />
         </nav>
       </aside>
 
@@ -85,38 +90,38 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto">
             <header className="mb-8">
               <h2 className="text-3xl font-bold text-white">War Room</h2>
-              <p className="text-slate-400 text-sm">Crie conteúdo viral para a classe C/D brasileira.</p>
+              <p className="text-slate-400 text-sm">Estratégia viral para o público brasileiro.</p>
             </header>
 
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-xl mb-12">
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <select value={duration} onChange={(e) => setDuration(e.target.value as VideoDuration)} className="bg-slate-900 border border-slate-700 p-2 rounded text-sm">
-                  <option value="10s">10 Segundos (Rápido)</option>
-                  <option value="30s">30 Segundos (Padrão)</option>
-                  <option value="60s">60 Segundos (Tutorial)</option>
+                <select value={duration} onChange={(e) => setDuration(e.target.value as VideoDuration)} className="bg-slate-900 border border-slate-700 p-2 rounded text-sm outline-none">
+                  <option value="10s">10 Segundos (Ultra Viral)</option>
+                  <option value="30s">30 Segundos (Equilibrado)</option>
+                  <option value="60s">60 Segundos (Explicativo)</option>
                 </select>
-                <select value={ctaPlacement} onChange={(e) => setCtaPlacement(e.target.value as CtaPlacement)} className="bg-slate-900 border border-slate-700 p-2 rounded text-sm">
-                  <option value="Inicio">CTA no Início</option>
-                  <option value="Meio">CTA no Meio</option>
-                  <option value="Fim">CTA no Fim</option>
+                <select value={ctaPlacement} onChange={(e) => setCtaPlacement(e.target.value as CtaPlacement)} className="bg-slate-900 border border-slate-700 p-2 rounded text-sm outline-none">
+                  <option value="Inicio">CTA no Início (Direto)</option>
+                  <option value="Meio">CTA no Meio (Retenção)</option>
+                  <option value="Fim">CTA no Fim (Tradicional)</option>
                 </select>
               </div>
               <div className="flex gap-2">
-                <input value={ideaInput} onChange={(e) => setIdeaInput(e.target.value)} placeholder="Tópico do vídeo..." className="flex-1 bg-slate-900 border border-slate-700 p-3 rounded-lg outline-none focus:border-green-500"/>
-                <button onClick={handleGenerate} disabled={isGenerating || !ideaInput} className="bg-green-600 hover:bg-green-500 px-6 py-3 rounded-lg font-bold flex items-center gap-2">
+                <input value={ideaInput} onChange={(e) => setIdeaInput(e.target.value)} placeholder="Digite o tema do vídeo (ex: Bug do Whats...)" className="flex-1 bg-slate-900 border border-slate-700 p-3 rounded-lg outline-none focus:border-green-500 transition-colors"/>
+                <button onClick={handleGenerate} disabled={isGenerating || !ideaInput} className="bg-green-600 hover:bg-green-500 px-6 py-3 rounded-lg font-bold flex items-center gap-2 transition-all">
                   {isGenerating ? <Loader2 className="animate-spin"/> : <Send size={18}/>} GERAR
                 </button>
               </div>
 
               <div className="mt-6">
                 <p className="text-[10px] font-bold text-orange-400 uppercase flex items-center gap-1 mb-2">
-                  <Flame size={12}/> Sugestões do Dia (Trending) {loadingTrends && "..."}
+                  <Flame size={12}/> Sugestões de Dores & IA (Trending) {loadingTrends && "..."}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {trends.map((t, i) => (
                     <button key={i} onClick={() => setIdeaInput(t.title)} className="text-left p-3 bg-slate-900/40 border border-slate-700 hover:border-orange-500/50 rounded text-xs transition-all">
-                      <div className="font-bold">{t.title}</div>
-                      <div className="text-slate-500">{t.reason}</div>
+                      <div className="font-bold text-slate-100">{t.title}</div>
+                      <div className="text-slate-500 mt-1">{t.reason}</div>
                     </button>
                   ))}
                 </div>
@@ -130,8 +135,8 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto">
             <header className="mb-8 flex justify-between items-center">
               <h2 className="text-3xl font-bold text-white">Arquivos</h2>
-              <button onClick={downloadCSV} className="bg-green-900/30 text-green-400 border border-green-800 px-4 py-2 rounded text-xs flex items-center gap-2">
-                <FileSpreadsheet size={16}/> Baixar Planilha (Google Sheets)
+              <button onClick={downloadCSV} className="bg-green-900/30 text-green-400 border border-green-800 px-4 py-2 rounded text-xs flex items-center gap-2 hover:bg-green-900/50 transition-colors">
+                <FileSpreadsheet size={16}/> Exportar para Sheets
               </button>
             </header>
             {scripts.map(s => <ScriptCard key={s.id} script={s} onUpdate={(upd) => setScripts(prev => prev.map(old => old.id === upd.id ? upd : old))}/>)}
@@ -142,12 +147,12 @@ const App: React.FC = () => {
           <div className="max-w-4xl mx-auto">
              <header className="mb-8 flex justify-between items-center">
               <h2 className="text-3xl font-bold text-white">O Cérebro</h2>
-              <button onClick={downloadJSON} className="text-blue-400 text-xs flex items-center gap-2"><Download size={14}/> Backup JSON</button>
+              <button onClick={downloadJSON} className="text-blue-400 text-xs flex items-center gap-2 hover:text-blue-300 transition-colors"><Download size={14}/> Backup da Alma (.json)</button>
             </header>
             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-               <textarea value={JSON.stringify(persona, null, 2)} className="w-full h-96 bg-slate-950 font-mono text-[10px] text-green-500 p-4 rounded outline-none" readOnly />
+               <textarea value={JSON.stringify(persona, null, 2)} className="w-full h-96 bg-slate-950 font-mono text-[10px] text-green-500 p-4 rounded outline-none border border-slate-800" readOnly />
                <div className="mt-4 flex items-center gap-2 text-slate-500 text-xs">
-                 <Save size={14}/> Dados armazenados localmente no navegador.
+                 <Save size={14}/> Dados sincronizados com o armazenamento local.
                </div>
             </div>
           </div>
@@ -158,7 +163,7 @@ const App: React.FC = () => {
 };
 
 const NavBtn: React.FC<{active:boolean, label:string, icon:any, onClick:()=>void}> = ({active, label, icon, onClick}) => (
-  <button onClick={onClick} className={`flex items-center gap-3 p-3 rounded-lg transition-all ${active ? 'bg-green-600/10 text-green-400 border-l-4 border-green-500' : 'text-slate-500 hover:text-white hover:bg-slate-900'}`}>
+  <button onClick={onClick} className={`flex items-center gap-3 p-3 rounded-lg transition-all w-full ${active ? 'bg-green-600/10 text-green-400 border-l-4 border-green-500' : 'text-slate-500 hover:text-white hover:bg-slate-900'}`}>
     {icon} <span className="text-sm font-medium">{label}</span>
   </button>
 );
